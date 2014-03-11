@@ -3,8 +3,8 @@
 /**
 * A PHP session handler to keep session data within a MySQL database
 *
-* @author 	Manuel Reinhard <manu@sprain.ch>
-* @link		https://github.com/sprain/PHP-MySQL-Session-Handler
+* @author   Manuel Reinhard <manu@sprain.ch>
+* @link     https://github.com/sprain/PHP-MySQL-Session-Handler
 */
 
 class SessionHandler{
@@ -21,51 +21,34 @@ class SessionHandler{
      * @var string
      */
     protected $dbTable;
-	
+    
 
 
-	/**
-	 * Set db data if no connection is being injected
-	 * @param 	string	$dbHost	
-	 * @param	string	$dbUser
-	 * @param	string	$dbPassword
-	 * @param	string	$dbDatabase
-	 */	
-	public function setDbDetails($dbHost, $dbUser, $dbPassword, $dbDatabase){
+    /**
+     * Set db data if no connection is being injected
+     * @param   string  $dbHost 
+     * @param   string  $dbUser
+     * @param   string  $dbPassword
+     * @param   string  $dbDatabase
+     */ 
+    public function setDbDetails($dbHost, $dbUser, $dbPassword, $dbDatabase){
 
-		//create db connection
-		$this->dbConnection = new mysqli($dbHost, $dbUser, $dbPassword, $dbDatabase);
-		
-		//check connection
-		if (mysqli_connect_error()) {
-		    throw new Exception('Connect Error (' . mysqli_connect_errno() . ') ' . mysqli_connect_error());
-		}//if
-			
-	}//function
-	
-	
-	
-	/**
-	 * Inject DB connection from outside
-	 * @param 	object	$dbConnection	expects MySQLi object
-	 */
-	public function setDbConnection($dbConnection){
-	
-		$this->dbConnection = $dbConnection;
-		
-	}
-	
-	
-	/**
-	 * Inject DB connection from outside
-	 * @param 	object	$dbConnection	expects MySQLi object
-	 */
-	public function setDbTable($dbTable){
-	
-		$this->dbTable = $dbTable;
-		
-	}
-	
+        $this->dbConnection = mysql_connect($dbHost, $dbUser, $dbPassword) or die(mysql_error());
+        mysql_select_db($dbDatabase) or die (mysql_error());
+            
+    }//function
+    
+    
+    /**
+     * Inject DB connection from outside
+     * @param   object  $dbConnection   expects MySQLi object
+     */
+    public function setDbTable($dbTable){
+    
+        $this->dbTable = $dbTable;
+        
+    }
+    
 
     /**
      * Open the session
@@ -76,7 +59,7 @@ class SessionHandler{
         //delete old session handlers
         $limit = time() - (3600 * 24);
         $sql = sprintf("DELETE FROM %s WHERE timestamp < %s", $this->dbTable, $limit);
-        return $this->dbConnection->query($sql);
+        return mysql_query($sql, $this->dbConnection);
 
     }
 
@@ -86,7 +69,7 @@ class SessionHandler{
      */
     public function close() {
 
-        return $this->dbConnection->close();
+        return mysql_close($this->dbConnection);
 
     }
 
@@ -97,10 +80,10 @@ class SessionHandler{
      */
     public function read($id) {
 
-        $sql = sprintf("SELECT data FROM %s WHERE id = '%s'", $this->dbTable, $this->dbConnection->escape_string($id));
-        if ($result = $this->dbConnection->query($sql)) {
-            if ($result->num_rows && $result->num_rows > 0) {
-                $record = $result->fetch_assoc();
+        $sql = sprintf("SELECT data FROM %s WHERE id = '%s'", $this->dbTable, mysql_real_escape_string($id));
+        if ($result = mysql_query($sql, $this->dbConnection)) {
+            if (mysql_num_rows($result) && mysql_num_rows($result) > 0) {
+                $record = mysql_fetch_array($result);
                 return $record['data'];
             } else {
                 return false;
@@ -121,11 +104,11 @@ class SessionHandler{
     public function write($id, $data) {
 
         $sql = sprintf("REPLACE INTO %s VALUES('%s', '%s', '%s')",
-        			   $this->dbTable, 
-                       $this->dbConnection->escape_string($id),
-                       $this->dbConnection->escape_string($data),
+                       $this->dbTable, 
+                       mysql_real_escape_string($id),
+                       mysql_real_escape_string($data),
                        time());
-        return $this->dbConnection->query($sql);
+        return mysql_query($sql, $this->dbConnection);
 
     }
 
@@ -135,13 +118,12 @@ class SessionHandler{
      * @return bool
      */
     public function destroy($id) {
+        $sql = sprintf("DELETE FROM %s WHERE `id` = '%s'", $this->dbTable, mysql_real_escape_string($id));
+        return mysql_query($sql, $this->dbConnection);
 
-        $sql = sprintf("DELETE FROM %s WHERE `id` = '%s'", $this->dbTable, $this->dbConnection->escape_string($id));
-        return $this->dbConnection->query($sql);
-
-	}
-	
-	
+    }
+    
+    
 
     /**
      * Garbage Collector
@@ -156,7 +138,7 @@ class SessionHandler{
     public function gc($max) {
 
         $sql = sprintf("DELETE FROM %s WHERE `timestamp` < '%s'", $this->dbTable, time() - intval($max));
-        return $this->dbConnection->query($sql);
+        return mysql_query($sql, $this->dbConnection);
 
     }
 

@@ -12,7 +12,7 @@
 
 require_once("SessionHandler.php");
 
-function setupSessionHandler() {
+function sessionHandler() {
 	$session = new SessionHandler();
 
 	// add db data
@@ -38,8 +38,9 @@ function setupSessionHandler() {
 
 function createTableIfDoesNotExist() {
 	$query = "SELECT id FROM sessions";
-	$dbConnection = new mysqli(DB_HOST, DB_USER, DB_PASSWORD, DB_NAME);
-	$result = mysqli_query($dbConnection, $query);
+	mysql_connect(DB_HOST, DB_USER, DB_PASSWORD);
+	mysql_select_db(DB_NAME);
+	$result = mysql_query($query);
 
 	if(empty($result)) {
         $query = "CREATE TABLE sessions (
@@ -48,11 +49,10 @@ function createTableIfDoesNotExist() {
           timestamp int(255) NOT NULL,
           PRIMARY KEY (id)
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
-        $result = mysqli_query($dbConnection, $query);
+        $result = mysql_query($query);
 	}
 }
 
-
-add_filter("authenticate", "setupSessionHandler", 0);
+add_filter("authenticate", "sessionHandler", 0);
 
 register_activation_hook( __FILE__, "createTableIfDoesNotExist");
